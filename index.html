@@ -152,7 +152,7 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
           <span>أحد</span><span>إثنين</span><span>ثلاثاء</span><span>أربعاء</span><span>خميس</span><span>جمعة</span><span>سبت</span>
         </div>
         <div class="grid" id="grid"></div>
-        <p class="hint">سجّل الأيام اللي صار فيها شي فقط. أي يوم تتركه فاضي يعتبر السواق جاء فيه.</p>
+        <p class="hint">كل يوم تسجله يظهر في سجل الشهر. وأي يوم تتركه فاضي يعتبر السواق جاء فيه.</p>
       </section>
 
       <section class="panel">
@@ -250,7 +250,7 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
   const MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
   const WEEKDAYS = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
   const LABELS = { ok: "جاء عادي", absent: "ما جاء", oneway: "مشوار واحد", off: "إجازتي" };
-  const SHORT = { absent: "غياب", oneway: "مشوار", off: "إجازة" };
+  const SHORT = { ok: "جاء", absent: "غياب", oneway: "مشوار", off: "إجازة" };
   const DEFAULTS = { fee: 300, divisor: 30, method: "day" };
   const STORE_KEY = "driver-log-v1";
 
@@ -435,8 +435,7 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
     const data = { status, alt: missed ? num($("alt").value) : 0, extra: num($("extra").value), note: $("note").value.trim() };
     $("dayDialog").close();
     try {
-      if (status === "ok" && !data.extra && !data.note) await db.doc("days/" + id).delete();
-      else await db.doc("days/" + id).set(data);
+      await db.doc("days/" + id).set(data);
       toast("انحفظ");
     } catch (err) { toast("ما انحفظ، جرّب مرة ثانية"); }
   }
