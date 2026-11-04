@@ -106,6 +106,8 @@ input[type=number], input[type=text], select {
 .pill.off { background: var(--off-bg); color: var(--off); }
 .pill.ok { background: var(--good-bg); color: var(--good); }
 .pill.none { color: var(--muted); font-weight: 500; }
+.reportbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.reportbar .btn { padding: 6px 14px; white-space: nowrap; }
 .tablewrap { overflow-x: auto; margin-top: 12px; }
 .report { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .8125rem; }
 .report th, .report td { padding: 8px 4px; border-top: 1px solid var(--line); text-align: right; vertical-align: top; }
@@ -185,8 +187,11 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
   </div>
 
   <section class="panel">
-    <h2 id="reportTitle">الكشف الكامل</h2>
-    <div class="tablewrap">
+    <div class="reportbar">
+      <h2 id="reportTitle">الكشف الكامل</h2>
+      <button class="btn" id="reportToggle" type="button" aria-expanded="false" aria-controls="reportWrap">مزيد</button>
+    </div>
+    <div class="tablewrap" id="reportWrap" hidden>
       <table class="report">
         <thead>
           <tr><th scope="col">اليوم</th><th scope="col">الحالة</th><th scope="col">الخصم</th><th scope="col">زيادة</th><th scope="col">البديل</th></tr>
@@ -684,6 +689,12 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
   $("settingsCancel").addEventListener("click", () => $("settingsDialog").close());
   ["setFee", "setDivisor", "setMethod"].forEach((id) => $(id).addEventListener("input", updateRateHint));
 
+  $("reportToggle").addEventListener("click", () => {
+    const open = $("reportWrap").hidden;
+    $("reportWrap").hidden = !open;
+    $("reportToggle").textContent = open ? "إخفاء" : "مزيد";
+    $("reportToggle").setAttribute("aria-expanded", String(open));
+  });
   $("exportBtn").addEventListener("click", exportData);
   $("importBtn").addEventListener("click", () => $("importFile").click());
   $("importFile").addEventListener("change", (e) => {
