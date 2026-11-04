@@ -136,6 +136,25 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
   position: fixed; inset: auto 0 calc(16px + env(safe-area-inset-bottom, 0px)); margin: 0 auto; width: fit-content; max-width: calc(100vw - 32px);
   background: var(--fg); color: var(--bg); padding: 8px 16px; border-radius: 8px; z-index: 20;
 }
+/* Print: only the month's account and the full day-by-day statement, always on white paper */
+@media print {
+  :root, :root:not([data-theme="light"]), :root[data-theme="dark"] {
+    --bg: #ffffff; --surface: #ffffff; --fg: #000000; --muted: #333333; --line: #999999;
+    --good: #000000; --good-bg: #ffffff; --absent: #000000; --absent-bg: #ffffff;
+    --oneway: #000000; --oneway-bg: #ffffff; --off: #000000; --off-bg: #ffffff;
+    color-scheme: light; padding: 0;
+  }
+  @page { margin: 12mm; }
+  header, #notice, .column, .pay, .actions, #reportToggle, #toast { display: none !important; }
+  #reportWrap { display: block !important; overflow: visible; }
+  .app { display: block; max-width: none; padding: 0; }
+  .layout { display: block; }
+  .panel { border: 0; padding: 0; margin-bottom: 16px; }
+  .report { font-size: 11px; }
+  .report th, .report td { padding: 3px 4px; }
+  .report tr { break-inside: avoid; }
+  .pill { padding: 0; }
+}
 </style>
 </head>
 <body>
@@ -181,6 +200,7 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
       </div>
       <div class="actions">
         <button class="btn" id="copyBtn" type="button">انسخ الكشف</button>
+        <button class="btn" id="printBtn" type="button">اطبع الكشف</button>
         <button class="btn ghost" id="clearPay" type="button" hidden>امسح الدفعات</button>
       </div>
     </section>
@@ -325,7 +345,7 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
       if (d.status === "absent" || d.status === "oneway") out.altMissed += num(d.alt);
       out.extra += num(d.extra);
     });
-    const raw = settings.method === "actual" ? out.altMissed : out.absent * rate + out.oneway * rate / 2;
+    const raw = settings.method === "actual" ? out.altMissed : (out.absent + out.oneway) * rate;
     out.deduct = Math.min(raw, fee);
     out.due = fee - out.deduct + out.extra;
     out.left = out.due - out.paid;
@@ -375,7 +395,7 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
     addRow(box, "الراتب الشهري", money(a.fee) + " ريال");
     if (settings.method === "day") {
       if (a.absent) addRow(box, "غياب " + a.absent + " يوم × " + money(a.rate), "− " + money(a.absent * a.rate), "minus");
-      if (a.oneway) addRow(box, "مشوار واحد " + a.oneway + " يوم × " + money(a.rate / 2), "− " + money(a.oneway * a.rate / 2), "minus");
+      if (a.oneway) addRow(box, "مشوار واحد " + a.oneway + " يوم × " + money(a.rate), "− " + money(a.oneway * a.rate), "minus");
     } else if (a.deduct) {
       addRow(box, "خصم البديل (" + (a.absent + a.oneway) + " يوم)", "− " + money(a.deduct), "minus");
     }
@@ -439,7 +459,7 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
   function dayDeduction(d, rate) {
     if (d.status !== "absent" && d.status !== "oneway") return 0;
     if (settings.method === "actual") return num(d.alt);
-    return d.status === "absent" ? rate : rate / 2;
+    return rate;
   }
 
   function renderReport() {
@@ -581,7 +601,7 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
   function updateRateHint() {
     const fee = num($("setFee").value), div = num($("setDivisor").value) || 30;
     $("rateHint").textContent = $("setMethod").value === "day"
-      ? "قيمة اليوم " + money(fee / div) + " ريال، والمشوار الواحد نصفها."
+      ? "قيمة اليوم " + money(fee / div) + " ريال، والمشوار الواحد نفس الخصم."
       : "يخصم من الراتب اللي دفعته للبديل في يوم الغياب.";
   }
   function openSettings() {
@@ -695,6 +715,7 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
     $("reportToggle").textContent = open ? "إخفاء" : "مزيد";
     $("reportToggle").setAttribute("aria-expanded", String(open));
   });
+  $("printBtn").addEventListener("click", () => window.print());
   $("exportBtn").addEventListener("click", exportData);
   $("importBtn").addEventListener("click", () => $("importFile").click());
   $("importFile").addEventListener("change", (e) => {
