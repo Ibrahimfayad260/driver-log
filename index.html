@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b5a9e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="دفتر السواق">
+<title>دفتر السواق</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+/* Layout: phone-first month calendar, with the month's account as a receipt beside it on wide screens */
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --fg: #18222d; --muted: #5b6876; --line: #d5dce3;
+  --accent: #1b5a9e; --on-accent: #ffffff;
+  --absent: #c0362c; --absent-bg: #fbe6e3;
+  --oneway: #9a6200; --oneway-bg: #fbeed2;
+  --off: #566372; --off-bg: #e3e8ed;
+  --good: #1c7a4d;
+  --display: Tahoma, "Segoe UI", system-ui, sans-serif;
+  --body: Tahoma, "Segoe UI", system-ui, sans-serif;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+}
+[hidden] { display: none !important; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12181f; --surface: #1b232c; --fg: #e8edf2; --muted: #9aa8b6; --line: #303b47;
+  --accent: #79b2ee; --on-accent: #0d1a28;
+  --absent: #f28b80; --absent-bg: #47211e;
+  --oneway: #eabb62; --oneway-bg: #41321a;
+  --off: #a7b3bf; --off-bg: #2c3641;
+  --good: #6bd19f; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #12181f; --surface: #1b232c; --fg: #e8edf2; --muted: #9aa8b6; --line: #303b47;
+  --accent: #79b2ee; --on-accent: #0d1a28;
+  --absent: #f28b80; --absent-bg: #47211e;
+  --oneway: #eabb62; --oneway-bg: #41321a;
+  --off: #a7b3bf; --off-bg: #2c3641;
+  --good: #6bd19f; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 16px/1.6 var(--body); }
+.app {
+  max-width: 980px; margin: 0 auto; display: grid; gap: 20px;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+h1 { font: 700 1.5rem/1.2 var(--display); margin: 0; }
+.sub { color: var(--muted); font-size: .875rem; margin: 2px 0 0; }
+h2 { font: 700 1.05rem/1.3 var(--display); margin: 0; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 9px 14px; font-weight: 500; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btn.ghost { border-color: transparent; background: none; color: var(--muted); }
+.btn:disabled { opacity: .5; cursor: default; }
+.notice { background: var(--oneway-bg); color: var(--fg); padding: 10px 14px; border-radius: 8px; font-size: .9375rem; }
+.layout { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 820px) { .layout { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); } }
+.column { display: grid; gap: 20px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.monthbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.monthbar .btn { padding: 6px 14px; }
+.weekdays, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.weekdays span { text-align: center; font-size: .75rem; color: var(--muted); padding-bottom: 4px; }
+.day {
+  aspect-ratio: 1 / 1; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; background: none;
+  padding: 2px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-variant-numeric: tabular-nums; font-weight: 500; line-height: 1.2; min-width: 0;
+}
+.day small { font-size: .625rem; font-weight: 500; white-space: nowrap; }
+.day.absent { background: var(--absent-bg); border-color: var(--absent); color: var(--absent); }
+.day.oneway { background: var(--oneway-bg); border-color: var(--oneway); color: var(--oneway); }
+.day.off { background: var(--off-bg); color: var(--off); }
+.day.today { outline: 2px solid var(--accent); outline-offset: 1px; }
+.day:hover { border-color: var(--accent); }
+.hint { color: var(--muted); font-size: .8125rem; margin: 12px 0 0; }
+.receipt { display: grid; gap: 8px; margin: 12px 0 0; }
+.row { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+.row span:last-child { white-space: nowrap; }
+.row.minus span:last-child { color: var(--absent); }
+.row.plus span:last-child { color: var(--good); }
+.row.total { border-top: 2px dashed var(--line); padding-top: 10px; font: 700 1.25rem/1.3 var(--display); }
+.row.quiet { color: var(--muted); font-size: .875rem; }
+.pill { display: inline-block; font-size: .75rem; padding: 1px 8px; border-radius: 99px; font-weight: 600; white-space: nowrap; }
+.pill.done { color: var(--good); border: 1px solid var(--good); }
+.pay { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.pay input { flex: 1 1 110px; min-width: 0; }
+.actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+input[type=number], input[type=text], select {
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; background: var(--bg); width: 100%;
+}
+.log { list-style: none; margin: 12px 0 0; padding: 0; display: grid; }
+.log li { border-top: 1px solid var(--line); }
+.log li:first-child { border-top: 0; }
+.log button { width: 100%; background: none; border: 0; padding: 10px 2px; display: grid; gap: 2px; text-align: right; }
+.log .top { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.log .meta { color: var(--muted); font-size: .8125rem; overflow-wrap: anywhere; }
+.pill.absent { background: var(--absent-bg); color: var(--absent); }
+.pill.oneway { background: var(--oneway-bg); color: var(--oneway); }
+.pill.off { background: var(--off-bg); color: var(--off); }
+.pill.ok { background: var(--bg); color: var(--muted); }
+.empty { color: var(--muted); margin: 12px 0 0; font-size: .9375rem; }
+dialog {
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--fg);
+  padding: 18px; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px);
+}
+dialog::backdrop { background: rgb(0 0 0 / .45); }
+form { display: grid; gap: 14px; }
+label.field { display: grid; gap: 4px; font-size: .875rem; font-weight: 500; min-width: 0; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+fieldset { border: 0; padding: 0; margin: 0; }
+legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
+.chips { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+.chips input { position: absolute; opacity: 0; }
+.chips span { display: block; text-align: center; padding: 9px 4px; border: 1px solid var(--line); border-radius: 8px; font-weight: 500; font-size: .9375rem; cursor: pointer; }
+.chips input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.chips input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.foot { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+.foot div { display: flex; gap: 8px; }
+.toast {
+  position: fixed; inset: auto 0 calc(16px + env(safe-area-inset-bottom, 0px)); margin: 0 auto; width: fit-content; max-width: calc(100vw - 32px);
+  background: var(--fg); color: var(--bg); padding: 8px 16px; border-radius: 8px; z-index: 20;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>دفتر السواق</h1>
+      <p class="sub">الدوام من 2 ظهرًا إلى 11 ليلًا</p>
+    </div>
+    <button class="btn" id="openSettings" type="button">الإعدادات</button>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <div class="layout">
+    <div class="column">
+      <section class="panel" aria-label="تقويم الشهر">
+        <div class="monthbar">
+          <button class="btn" id="prev" type="button" aria-label="الشهر السابق">›</button>
+          <h2 id="monthName"></h2>
+          <button class="btn" id="next" type="button" aria-label="الشهر التالي">‹</button>
+        </div>
+        <div class="weekdays" aria-hidden="true">
+          <span>أحد</span><span>إثنين</span><span>ثلاثاء</span><span>أربعاء</span><span>خميس</span><span>جمعة</span><span>سبت</span>
+        </div>
+        <div class="grid" id="grid"></div>
+        <p class="hint">سجّل الأيام اللي صار فيها شي فقط. أي يوم تتركه فاضي يعتبر السواق جاء فيه.</p>
+      </section>
+
+      <section class="panel">
+        <h2>سجل الشهر</h2>
+        <ul class="log" id="log"></ul>
+        <p class="empty" id="logEmpty">ما فيه شي مسجل هذا الشهر. اضغط على أي يوم في التقويم لتسجيله.</p>
+      </section>
+    </div>
+
+    <section class="panel" aria-label="حساب الشهر">
+      <h2>حساب الشهر</h2>
+      <div class="receipt" id="receipt"></div>
+      <div class="pay">
+        <input type="number" id="payAmount" min="0" step="any" inputmode="decimal" aria-label="مبلغ الدفعة بالريال" placeholder="المبلغ">
+        <button class="btn primary" id="payBtn" type="button">سجّل دفعة</button>
+      </div>
+      <div class="actions">
+        <button class="btn" id="copyBtn" type="button">انسخ الكشف</button>
+        <button class="btn ghost" id="clearPay" type="button" hidden>امسح الدفعات</button>
+      </div>
+    </section>
+  </div>
+
+  <dialog id="dayDialog">
+    <form id="dayForm" method="dialog">
+      <h2 id="dayTitle"></h2>
+      <fieldset>
+        <legend>وش صار في هذا اليوم؟</legend>
+        <div class="chips">
+          <label><input type="radio" name="status" value="ok"><span>جاء عادي</span></label>
+          <label><input type="radio" name="status" value="absent"><span>ما جاء</span></label>
+          <label><input type="radio" name="status" value="oneway"><span>مشوار واحد فقط</span></label>
+          <label><input type="radio" name="status" value="off"><span>إجازتي</span></label>
+        </div>
+      </fieldset>
+      <div class="two">
+        <label class="field" id="altField">دفعت لبديل (ريال)
+          <input type="number" id="alt" min="0" step="any" inputmode="decimal" placeholder="0">
+        </label>
+        <label class="field">مشوار زيادة للسواق (ريال)
+          <input type="number" id="extra" min="0" step="any" inputmode="decimal" placeholder="0">
+        </label>
+      </div>
+      <label class="field">ملاحظة
+        <input type="text" id="note" maxlength="140" placeholder="مثال: أوبر للدوام">
+      </label>
+      <div class="foot">
+        <button class="btn ghost" id="dayClear" type="button">امسح اليوم</button>
+        <div>
+          <button class="btn" id="dayCancel" type="button">إلغاء</button>
+          <button class="btn primary" type="submit">احفظ</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog">
+    <form id="settingsForm" method="dialog">
+      <h2>الإعدادات</h2>
+      <div class="two">
+        <label class="field">الراتب الشهري (ريال)
+          <input type="number" id="setFee" min="0" step="any" inputmode="decimal" required>
+        </label>
+        <label class="field">أيام الحساب في الشهر
+          <input type="number" id="setDivisor" min="1" max="31" step="1" inputmode="numeric" required>
+        </label>
+      </div>
+      <label class="field">طريقة الخصم عند الغياب
+        <select id="setMethod">
+          <option value="day">قيمة اليوم من الراتب</option>
+          <option value="actual">المبلغ اللي دفعته للبديل</option>
+        </select>
+      </label>
+      <p class="hint" id="rateHint"></p>
+      <div class="actions">
+        <button class="btn" id="exportBtn" type="button">نزّل نسخة احتياطية</button>
+        <button class="btn" id="importBtn" type="button">استرجع نسخة</button>
+        <input type="file" id="importFile" accept=".json,application/json" hidden>
+      </div>
+      <div class="foot">
+        <span></span>
+        <div>
+          <button class="btn" id="settingsCancel" type="button">إلغاء</button>
+          <button class="btn primary" type="submit">احفظ</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+</div>
+
+<script>
+(function () {
+  const MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+  const WEEKDAYS = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+  const LABELS = { ok: "جاء عادي", absent: "ما جاء", oneway: "مشوار واحد", off: "إجازتي" };
+  const SHORT = { absent: "غياب", oneway: "مشوار", off: "إجازة" };
+  const DEFAULTS = { fee: 300, divisor: 30, method: "day" };
+  const STORE_KEY = "driver-log-v1";
+
+  const $ = (id) => document.getElementById(id);
+  const pad = (n) => String(n).padStart(2, "0");
+  const now = new Date();
+  const todayId = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+
+  let year = now.getFullYear(), month = now.getMonth();
+  let db = null, readOnly = false, editing = null;
+  let settings = { ...DEFAULTS };
+  const days = {}, months = {};
+
+  const ym = () => year + "-" + pad(month + 1);
+  const money = (n) => (Math.round(n * 100) / 100).toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const num = (v) => { const n = parseFloat(v); return isFinite(n) && n > 0 ? n : 0; };
+  const fullDate = (id) => {
+    const [y, m, d] = id.split("-").map(Number);
+    return WEEKDAYS[new Date(y, m - 1, d).getDay()] + " " + d + " " + MONTHS[m - 1];
+  };
+
+  function toast(text) {
+    const t = $("toast");
+    t.textContent = text;
+    t.hidden = false;
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => { t.hidden = true; }, 2600);
+  }
+  function notice(text) {
+    $("notice").textContent = text || "";
+    $("notice").hidden = !text;
+  }
+
+  // The month's account. Unlogged days count as normal days.
+  function account(key) {
+    const m = months[key] || {};
+    const fee = typeof m.fee === "number" ? m.fee : settings.fee;
+    const rate = fee / (settings.divisor || 30);
+    const out = { fee, rate, absent: 0, oneway: 0, off: 0, alt: 0, altMissed: 0, extra: 0, paid: num(m.paid) };
+    Object.keys(days).filter((id) => id.startsWith(key)).forEach((id) => {
+      const d = days[id];
+      if (d.status === "absent" || d.status === "oneway" || d.status === "off") out[d.status]++;
+      out.alt += num(d.alt);
+      if (d.status === "absent" || d.status === "oneway") out.altMissed += num(d.alt);
+      out.extra += num(d.extra);
+    });
+    const raw = settings.method === "actual" ? out.altMissed : out.absent * rate + out.oneway * rate / 2;
+    out.deduct = Math.min(raw, fee);
+    out.due = fee - out.deduct + out.extra;
+    out.left = out.due - out.paid;
+    return out;
+  }
+
+  function renderGrid() {
+    const grid = $("grid");
+    grid.textContent = "";
+    $("monthName").textContent = MONTHS[month] + " " + year;
+    const first = new Date(year, month, 1).getDay();
+    const count = new Date(year, month + 1, 0).getDate();
+    for (let i = 0; i < first; i++) grid.appendChild(document.createElement("span"));
+    for (let d = 1; d <= count; d++) {
+      const id = ym() + "-" + pad(d);
+      const entry = days[id];
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "day" + (entry && SHORT[entry.status] ? " " + entry.status : "") + (id === todayId ? " today" : "");
+      b.textContent = d;
+      const tag = entry && (SHORT[entry.status] || (num(entry.extra) ? "زيادة" : ""));
+      if (tag) {
+        const s = document.createElement("small");
+        s.textContent = tag;
+        b.appendChild(s);
+      }
+      b.setAttribute("aria-label", fullDate(id) + (entry ? "، " + LABELS[entry.status] : ""));
+      b.addEventListener("click", () => openDay(id));
+      grid.appendChild(b);
+    }
+  }
+
+  function addRow(parent, label, value, cls) {
+    const r = document.createElement("div");
+    r.className = "row" + (cls ? " " + cls : "");
+    const a = document.createElement("span"), b = document.createElement("span");
+    a.textContent = label;
+    b.textContent = value;
+    r.append(a, b);
+    parent.appendChild(r);
+    return r;
+  }
+
+  function renderReceipt() {
+    const a = account(ym()), box = $("receipt");
+    box.textContent = "";
+    addRow(box, "الراتب الشهري", money(a.fee) + " ريال");
+    if (settings.method === "day") {
+      if (a.absent) addRow(box, "غياب " + a.absent + " يوم × " + money(a.rate), "− " + money(a.absent * a.rate), "minus");
+      if (a.oneway) addRow(box, "مشوار واحد " + a.oneway + " يوم × " + money(a.rate / 2), "− " + money(a.oneway * a.rate / 2), "minus");
+    } else if (a.deduct) {
+      addRow(box, "خصم البديل (" + (a.absent + a.oneway) + " يوم)", "− " + money(a.deduct), "minus");
+    }
+    if (a.extra) addRow(box, "مشاوير زيادة", "+ " + money(a.extra), "plus");
+    addRow(box, "المستحق للسواق", money(a.due) + " ريال", "total");
+    if (a.paid) {
+      addRow(box, "مدفوع", money(a.paid) + " ريال", "quiet");
+      if (a.left > 0.004) addRow(box, "المتبقي", money(a.left) + " ريال", "quiet");
+      else if (a.left < -0.004) addRow(box, "دفعت زيادة", money(-a.left) + " ريال", "quiet");
+      else {
+        const r = addRow(box, "الحالة", "", "quiet");
+        const p = document.createElement("span");
+        p.className = "pill done";
+        p.textContent = "تم السداد";
+        r.lastChild.appendChild(p);
+      }
+    }
+    if (a.alt) addRow(box, "صرفت على البديل", money(a.alt) + " ريال", "quiet");
+    addRow(box, "تكلفة نقلك هذا الشهر", money(a.paid > a.due ? a.paid + a.alt : a.due + a.alt) + " ريال", "quiet");
+    $("clearPay").hidden = !a.paid;
+    $("payAmount").placeholder = a.left > 0 ? money(a.left) : "المبلغ";
+  }
+
+  function renderLog() {
+    const list = $("log");
+    list.textContent = "";
+    const ids = Object.keys(days).filter((id) => id.startsWith(ym())).sort().reverse();
+    $("logEmpty").hidden = ids.length > 0;
+    ids.forEach((id) => {
+      const d = days[id];
+      const li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button";
+      const top = document.createElement("span"), name = document.createElement("span"), pill = document.createElement("span");
+      top.className = "top";
+      name.textContent = fullDate(id);
+      pill.className = "pill " + d.status;
+      pill.textContent = LABELS[d.status] || "";
+      top.append(name, pill);
+      b.appendChild(top);
+      const bits = [];
+      if (num(d.alt)) bits.push("بديل " + money(num(d.alt)));
+      if (num(d.extra)) bits.push("مشوار زيادة " + money(num(d.extra)));
+      if (d.note) bits.push(d.note);
+      if (bits.length) {
+        const m = document.createElement("span");
+        m.className = "meta";
+        m.textContent = bits.join(" · ");
+        b.appendChild(m);
+      }
+      b.addEventListener("click", () => openDay(id));
+      li.appendChild(b);
+      list.appendChild(li);
+    });
+  }
+
+  function render() { renderGrid(); renderReceipt(); renderLog(); }
+
+  function syncAltField() {
+    const s = document.querySelector('input[name=status]:checked');
+    const show = s && (s.value === "absent" || s.value === "oneway");
+    $("altField").hidden = !show;
+  }
+
+  function openDay(id) {
+    if (!db) return toast("ما يمكن الحفظ حاليًا");
+    if (readOnly) return toast("عندك صلاحية عرض فقط");
+    editing = id;
+    const d = days[id] || {};
+    $("dayTitle").textContent = fullDate(id);
+    const status = d.status || "absent";
+    document.querySelectorAll("input[name=status]").forEach((r) => { r.checked = r.value === status; });
+    $("alt").value = num(d.alt) || "";
+    $("extra").value = num(d.extra) || "";
+    $("note").value = d.note || "";
+    $("dayClear").hidden = !days[id];
+    syncAltField();
+    $("dayDialog").showModal();
+  }
+
+  async function saveDay(e) {
+    e.preventDefault();
+    const id = editing;
+    const status = document.querySelector("input[name=status]:checked").value;
+    const missed = status === "absent" || status === "oneway";
+    const data = { status, alt: missed ? num($("alt").value) : 0, extra: num($("extra").value), note: $("note").value.trim() };
+    $("dayDialog").close();
+    try {
+      if (status === "ok" && !data.extra && !data.note) await db.doc("days/" + id).delete();
+      else await db.doc("days/" + id).set(data);
+      toast("انحفظ");
+    } catch (err) { toast("ما انحفظ، جرّب مرة ثانية"); }
+  }
+
+  async function clearDay() {
+    const id = editing;
+    $("dayDialog").close();
+    try { await db.doc("days/" + id).delete(); toast("انمسح اليوم"); }
+    catch (err) { toast("ما انمسح، جرّب مرة ثانية"); }
+  }
+
+  async function addPayment() {
+    if (!db || readOnly) return toast("ما يمكن الحفظ حاليًا");
+    const a = account(ym());
+    const amount = num($("payAmount").value) || Math.max(a.left, 0);
+    if (!amount) return toast("اكتب مبلغ الدفعة");
+    try {
+      // The fee is stored so a later fee change does not rewrite this month.
+      await db.doc("months/" + ym()).set({ paid: a.paid + amount, fee: a.fee, paidOn: todayId });
+      $("payAmount").value = "";
+      toast("انسجلت الدفعة");
+    } catch (err) { toast("ما انحفظت، جرّب مرة ثانية"); }
+  }
+
+  async function clearPayments() {
+    try { await db.doc("months/" + ym()).delete(); toast("انمسحت الدفعات"); }
+    catch (err) { toast("ما انمسحت، جرّب مرة ثانية"); }
+  }
+
+  function statement() {
+    const a = account(ym());
+    const lines = ["كشف حساب السواق - " + MONTHS[month] + " " + year, "الراتب: " + money(a.fee) + " ريال"];
+    if (a.absent) lines.push("أيام الغياب: " + a.absent);
+    if (a.oneway) lines.push("أيام المشوار الواحد: " + a.oneway);
+    if (a.deduct) lines.push("الخصم: " + money(a.deduct) + " ريال");
+    if (a.extra) lines.push("مشاوير زيادة: " + money(a.extra) + " ريال");
+    lines.push("المستحق: " + money(a.due) + " ريال");
+    if (a.paid) lines.push("مدفوع: " + money(a.paid) + " ريال", "المتبقي: " + money(Math.max(a.left, 0)) + " ريال");
+    const ids = Object.keys(days).filter((id) => id.startsWith(ym()) && days[id].status !== "ok" && days[id].status !== "off").sort();
+    if (ids.length) {
+      lines.push("", "التفاصيل:");
+      ids.forEach((id) => lines.push("- " + fullDate(id) + ": " + LABELS[days[id].status]));
+    }
+    return lines.join("\n");
+  }
+
+  function fallbackCopy(text) {
+    const area = document.createElement("textarea");
+    area.value = text;
+    document.querySelector(".app").appendChild(area);
+    area.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) {}
+    area.remove();
+    toast(ok ? "تم نسخ الكشف" : "ما قدرت أنسخ");
+  }
+  function copyStatement() {
+    const text = statement();
+    if (!navigator.clipboard) return fallbackCopy(text);
+    navigator.clipboard.writeText(text).then(() => toast("تم النسخ، الصقه في واتساب"), () => fallbackCopy(text));
+  }
+
+  function updateRateHint() {
+    const fee = num($("setFee").value), div = num($("setDivisor").value) || 30;
+    $("rateHint").textContent = $("setMethod").value === "day"
+      ? "قيمة اليوم " + money(fee / div) + " ريال، والمشوار الواحد نصفها."
+      : "يخصم من الراتب اللي دفعته للبديل في يوم الغياب.";
+  }
+  function openSettings() {
+    if (!db || readOnly) return toast("ما يمكن الحفظ حاليًا");
+    $("setFee").value = settings.fee;
+    $("setDivisor").value = settings.divisor;
+    $("setMethod").value = settings.method;
+    updateRateHint();
+    $("settingsDialog").showModal();
+  }
+  async function saveSettings(e) {
+    e.preventDefault();
+    const data = { fee: num($("setFee").value), divisor: num($("setDivisor").value) || 30, method: $("setMethod").value };
+    $("settingsDialog").close();
+    try { await db.doc("settings/main").set(data); toast("انحفظت الإعدادات"); }
+    catch (err) { toast("ما انحفظت، جرّب مرة ثانية"); }
+  }
+
+  function step(delta) {
+    const d = new Date(year, month + delta, 1);
+    year = d.getFullYear();
+    month = d.getMonth();
+    render();
+  }
+
+  function persist() {
+    localStorage.setItem(STORE_KEY, JSON.stringify({ days, months, settings }));
+  }
+
+  function replaceData(saved) {
+    [days, months].forEach((t) => Object.keys(t).forEach((k) => delete t[k]));
+    Object.assign(days, saved.days);
+    Object.assign(months, saved.months);
+    settings = { ...DEFAULTS, ...saved.settings };
+  }
+
+  // Same doc(path).set/delete shape the save functions use; everything stays on this device.
+  const localDb = {
+    doc(path) {
+      const [col, id] = path.split("/");
+      return {
+        async set(data) {
+          if (col === "settings") settings = { ...DEFAULTS, ...data };
+          else (col === "days" ? days : months)[id] = data;
+          persist();
+          render();
+        },
+        async delete() {
+          delete (col === "days" ? days : months)[id];
+          persist();
+          render();
+        },
+      };
+    },
+  };
+
+  function connect() {
+    db = localDb;
+    try {
+      const saved = localStorage.getItem(STORE_KEY);
+      if (saved) replaceData(JSON.parse(saved));
+      persist();
+    } catch (err) {
+      db = null;
+      return notice("هذا المتصفح يمنع حفظ البيانات. افتح التطبيق بدون التصفح الخاص.");
+    }
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    render();
+  }
+
+  function exportData() {
+    const blob = new Blob([JSON.stringify({ days, months, settings }, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "driver-log-" + todayId + ".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast("تم تنزيل النسخة");
+  }
+
+  async function importData(file) {
+    try {
+      const saved = JSON.parse(await file.text());
+      if (!saved || typeof saved.days !== "object" || typeof saved.months !== "object") throw new Error("bad file");
+      if (!confirm("بتستبدل كل البيانات الحالية بهذه النسخة. تكمل؟")) return;
+      replaceData(saved);
+      persist();
+      render();
+      $("settingsDialog").close();
+      toast("تم استرجاع النسخة");
+    } catch (err) { toast("الملف غير صالح"); }
+  }
+
+  $("prev").addEventListener("click", () => step(-1));
+  $("next").addEventListener("click", () => step(1));
+  $("dayForm").addEventListener("submit", saveDay);
+  $("dayCancel").addEventListener("click", () => $("dayDialog").close());
+  $("dayClear").addEventListener("click", clearDay);
+  document.querySelectorAll("input[name=status]").forEach((r) => r.addEventListener("change", syncAltField));
+  $("payBtn").addEventListener("click", addPayment);
+  $("clearPay").addEventListener("click", clearPayments);
+  $("copyBtn").addEventListener("click", copyStatement);
+  $("openSettings").addEventListener("click", openSettings);
+  $("settingsForm").addEventListener("submit", saveSettings);
+  $("settingsCancel").addEventListener("click", () => $("settingsDialog").close());
+  ["setFee", "setDivisor", "setMethod"].forEach((id) => $(id).addEventListener("input", updateRateHint));
+
+  $("exportBtn").addEventListener("click", exportData);
+  $("importBtn").addEventListener("click", () => $("importFile").click());
+  $("importFile").addEventListener("change", (e) => {
+    if (e.target.files[0]) importData(e.target.files[0]);
+    e.target.value = "";
+  });
+
+  render();
+  connect();
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>
