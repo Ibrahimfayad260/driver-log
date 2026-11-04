@@ -17,7 +17,7 @@
   --absent: #c0362c; --absent-bg: #fbe6e3;
   --oneway: #9a6200; --oneway-bg: #fbeed2;
   --off: #566372; --off-bg: #e3e8ed;
-  --good: #1c7a4d;
+  --good: #1c7a4d; --good-bg: #dcf3e6;
   --display: Tahoma, "Segoe UI", system-ui, sans-serif;
   --body: Tahoma, "Segoe UI", system-ui, sans-serif;
   padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
@@ -29,7 +29,7 @@
   --absent: #f28b80; --absent-bg: #47211e;
   --oneway: #eabb62; --oneway-bg: #41321a;
   --off: #a7b3bf; --off-bg: #2c3641;
-  --good: #6bd19f; color-scheme: dark;
+  --good: #6bd19f; --good-bg: #173d2b; color-scheme: dark;
 } }
 :root[data-theme="dark"] {
   --bg: #12181f; --surface: #1b232c; --fg: #e8edf2; --muted: #9aa8b6; --line: #303b47;
@@ -37,7 +37,7 @@
   --absent: #f28b80; --absent-bg: #47211e;
   --oneway: #eabb62; --oneway-bg: #41321a;
   --off: #a7b3bf; --off-bg: #2c3641;
-  --good: #6bd19f; color-scheme: dark;
+  --good: #6bd19f; --good-bg: #173d2b; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 400 16px/1.6 var(--body); }
@@ -76,6 +76,7 @@ button { cursor: pointer; }
 .day.absent { background: var(--absent-bg); border-color: var(--absent); color: var(--absent); }
 .day.oneway { background: var(--oneway-bg); border-color: var(--oneway); color: var(--oneway); }
 .day.off { background: var(--off-bg); color: var(--off); }
+.day.ok { background: var(--good-bg); border-color: var(--good); color: var(--good); }
 .day.today { outline: 2px solid var(--accent); outline-offset: 1px; }
 .day:hover { border-color: var(--accent); }
 .hint { color: var(--muted); font-size: .8125rem; margin: 12px 0 0; }
@@ -103,7 +104,14 @@ input[type=number], input[type=text], select {
 .pill.absent { background: var(--absent-bg); color: var(--absent); }
 .pill.oneway { background: var(--oneway-bg); color: var(--oneway); }
 .pill.off { background: var(--off-bg); color: var(--off); }
-.pill.ok { background: var(--bg); color: var(--muted); }
+.pill.ok { background: var(--good-bg); color: var(--good); }
+.pill.none { color: var(--muted); font-weight: 500; }
+.tablewrap { overflow-x: auto; margin-top: 12px; }
+.report { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .8125rem; }
+.report th, .report td { padding: 8px 4px; border-top: 1px solid var(--line); text-align: right; vertical-align: top; }
+.report thead th { border-top: 0; color: var(--muted); font-weight: 500; }
+.report tfoot th { border-top: 2px dashed var(--line); font-weight: 700; }
+.report small { display: block; color: var(--muted); overflow-wrap: anywhere; }
 .empty { color: var(--muted); margin: 12px 0 0; font-size: .9375rem; }
 dialog {
   border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--fg);
@@ -175,6 +183,21 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
       </div>
     </section>
   </div>
+
+  <section class="panel">
+    <h2 id="reportTitle">الكشف الكامل</h2>
+    <div class="tablewrap">
+      <table class="report">
+        <thead>
+          <tr><th scope="col">اليوم</th><th scope="col">الحالة</th><th scope="col">الخصم</th><th scope="col">زيادة</th><th scope="col">البديل</th></tr>
+        </thead>
+        <tbody id="reportBody"></tbody>
+        <tfoot>
+          <tr><th scope="row" colspan="2">الإجمالي</th><th id="totalDeduct"></th><th id="totalExtra"></th><th id="totalAlt"></th></tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
 
   <dialog id="dayDialog">
     <form id="dayForm" method="dialog">
@@ -403,7 +426,51 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
     });
   }
 
-  function render() { renderGrid(); renderReceipt(); renderLog(); }
+  function monthIds() {
+    const count = new Date(year, month + 1, 0).getDate();
+    return Array.from({ length: count }, (_, i) => ym() + "-" + pad(i + 1));
+  }
+
+  function dayDeduction(d, rate) {
+    if (d.status !== "absent" && d.status !== "oneway") return 0;
+    if (settings.method === "actual") return num(d.alt);
+    return d.status === "absent" ? rate : rate / 2;
+  }
+
+  function renderReport() {
+    const a = account(ym()), body = $("reportBody");
+    body.textContent = "";
+    $("reportTitle").textContent = "الكشف الكامل - " + MONTHS[month] + " " + year;
+    monthIds().forEach((id) => {
+      const d = days[id];
+      const row = document.createElement("tr");
+      const date = document.createElement("td"), state = document.createElement("td");
+      date.className = "date";
+      date.textContent = fullDate(id);
+      const pill = document.createElement("span");
+      pill.className = "pill " + (d ? d.status : "none");
+      pill.textContent = d ? LABELS[d.status] : "بدون تسجيل";
+      state.appendChild(pill);
+      if (d && d.note) {
+        const note = document.createElement("small");
+        note.textContent = d.note;
+        state.appendChild(note);
+      }
+      row.append(date, state);
+      const cut = d ? dayDeduction(d, a.rate) : 0;
+      [cut, d ? num(d.extra) : 0, d ? num(d.alt) : 0].forEach((v) => {
+        const cell = document.createElement("td");
+        cell.textContent = v ? money(v) : "-";
+        row.appendChild(cell);
+      });
+      body.appendChild(row);
+    });
+    $("totalDeduct").textContent = money(a.deduct);
+    $("totalExtra").textContent = money(a.extra);
+    $("totalAlt").textContent = money(a.alt);
+  }
+
+  function render() { renderGrid(); renderReceipt(); renderLog(); renderReport(); }
 
   function syncAltField() {
     const s = document.querySelector('input[name=status]:checked');
@@ -474,11 +541,19 @@ legend { font-size: .875rem; font-weight: 500; padding: 0; margin-bottom: 6px; }
     if (a.extra) lines.push("مشاوير زيادة: " + money(a.extra) + " ريال");
     lines.push("المستحق: " + money(a.due) + " ريال");
     if (a.paid) lines.push("مدفوع: " + money(a.paid) + " ريال", "المتبقي: " + money(Math.max(a.left, 0)) + " ريال");
-    const ids = Object.keys(days).filter((id) => id.startsWith(ym()) && days[id].status !== "ok" && days[id].status !== "off").sort();
-    if (ids.length) {
-      lines.push("", "التفاصيل:");
-      ids.forEach((id) => lines.push("- " + fullDate(id) + ": " + LABELS[days[id].status]));
-    }
+    lines.push("", "التفاصيل:");
+    monthIds().forEach((id) => {
+      const d = days[id];
+      const bits = [d ? LABELS[d.status] : "بدون تسجيل"];
+      if (d) {
+        const cut = dayDeduction(d, a.rate);
+        if (cut) bits.push("خصم " + money(cut));
+        if (num(d.extra)) bits.push("زيادة " + money(num(d.extra)));
+        if (num(d.alt)) bits.push("بديل " + money(num(d.alt)));
+        if (d.note) bits.push(d.note);
+      }
+      lines.push("- " + fullDate(id) + ": " + bits.join("، "));
+    });
     return lines.join("\n");
   }
 
